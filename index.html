@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Briefly.ai | AI News</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <style>
+        .news-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .swipe-left { transform: translateX(-100%) rotate(-10deg); opacity: 0; }
+        body.dark { background-color: #0f172a; color: #f8fafc; }
+    </style>
+</head>
+<body class="dark font-sans transition-colors duration-500">
+    <nav class="max-w-4xl mx-auto p-6 flex justify-between items-center border-b border-gray-800">
+        <h1 class="text-2xl font-black tracking-tighter italic text-blue-500">BRIEFLY.AI</h1>
+        <div class="flex items-center gap-4">
+            <button onclick="document.body.classList.toggle('dark')" class="text-xl">🌓</button>
+            <div data-netlify-identity-button></div>
+        </div>
+    </nav>
+
+    <main id="app" class="max-w-2xl mx-auto py-10 px-4">
+        <div id="news-feed" class="space-y-8">
+            <div class="text-center py-20">
+                <h2 class="text-3xl font-bold mb-4">Welcome, Shihab.</h2>
+                <p class="text-gray-500">Log in to start your AI-curated news feed.</p>
+            </div>
+        </div>
+    </main>
+
+    <button onclick="toggleSettings()" class="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-2xl z-50">⚙️</button>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[100]">
+        <div class="bg-gray-900 border border-gray-800 p-8 rounded-3xl w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6">Personalize</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-bold text-gray-500 mb-2">Gemini API Key</label>
+                    <input type="password" id="api-key" class="w-full bg-black border border-gray-800 p-3 rounded-xl focus:border-blue-500 outline-none" placeholder="Paste key here...">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase font-bold text-gray-500 mb-2">My Interests</label>
+                    <textarea id="interests-input" class="w-full bg-black border border-gray-800 p-3 rounded-xl focus:border-blue-500 outline-none" rows="4" placeholder="e.g. Saudi Stock Market, Industrial Weighing, Tech..."></textarea>
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-blue-600 hover:bg-blue-700 py-4 rounded-xl font-bold transition-all">Save & Sync to Cloud</button>
+                <button onclick="toggleSettings()" class="w-full text-gray-500 text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSettings() {
+            document.getElementById('settings-modal').classList.toggle('hidden');
+        }
+
+        async function saveSettings() {
+            const user = netlifyIdentity.currentUser();
+            if (!user) return alert("Please log in first!");
+            
+            const payload = {
+                geminiKey: document.getElementById('api-key').value,
+                interests: document.getElementById('interests-input').value
+            };
+
+            const res = await fetch('/.netlify/functions/updatePrefs', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${user.token.access_token}` },
+                body: JSON.stringify(payload)
+            });
+            
+            if (res.ok) {
+                alert("Settings Saved!");
+                toggleSettings();
+                location.reload();
+            }
+        }
+
+        netlifyIdentity.on('login', user => {
+            fetchNews();
+            netlifyIdentity.close();
+        });
+
+        async function fetchNews() {
+            const user = netlifyIdentity.currentUser();
+            const feed = document.getElementById('news-feed');
+            feed.innerHTML = '<div class="animate-pulse text-center text-blue-500 font-bold text-xl">Gemini is reading the news for you...</div>';
+
+            try {
+                const res = await fetch('/.netlify/functions/getNews', {
+                    headers: { Authorization: `Bearer ${user.token.access_token}` }
+                });
+                const news = await res.json();
+                renderNews(news);
+            } catch (e) {
+                feed.innerHTML = '<p class="text-center text-red-500">Failed to load news. Check your API key in settings.</p>';
+            }
+        }
+
+        function renderNews(articles) {
+            const container = document.getElementById('news-feed');
+            container.innerHTML = articles.map((art, i) => `
+                <div id="card-${i}" class="news-card group bg-white dark:bg-gray-800/50 p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all">
+                    ${art.urlToImage ? `<img src="${art.urlToImage}" class="w-full h-56 object-cover rounded-2xl mb-6 grayscale hover:grayscale-0 transition-all duration-500">` : ''}
+                    <h3 class="text-2xl font-bold mb-3 leading-tight">${art.title}</h3>
+                    <p class="text-gray-500 dark:text-gray-400 leading-relaxed mb-6">${art.summary}</p>
+                    <div class="flex justify-between items-center">
+                        <button onclick="dismiss(${i})" class="text-sm font-bold text-red-500/50 hover:text-red-500 uppercase tracking-widest">Swipe Away</button>
+                        <a href="${art.url}" target="_blank" class="bg-gray-100 dark:bg-gray-700 px-6 py-2 rounded-full text-sm font-bold">Read Native Source</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function dismiss(id) {
+            const el = document.getElementById(`card-${id}`);
+            el.classList.add('swipe-left');
+            setTimeout(() => el.remove(), 300);
+        }
+    </script>
+</body>
+</html>
