@@ -1,0 +1,11 @@
+{
+  "name": "my-ai-news-app",
+  "version": "1.0.0",
+  "description": "AI News App",
+  "main": "index.html",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@netlify/blobs": "^0.3.0",
+    "axios": "^1.6.0"
+  }
+}
