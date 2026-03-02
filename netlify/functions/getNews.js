@@ -14,19 +14,17 @@ exports.handler = async (event, context) => {
       return { statusCode: 400, body: JSON.stringify([{ title: "Key Missing", summary: "Add your Gemini API key in settings." }]) };
     }
 
+    // Fetch news using your shared key from Netlify environment variables
     const newsRes = await axios.get(`https://newsapi.org/v2/top-headlines?country=in&apiKey=${process.env.NEWS_API_KEY}`);
     const articles = newsRes.data.articles.slice(0, 10);
 
-    const ai = new GoogleGenAI({ apiKey: prefs.geminiKey });
+    const client = new GoogleGenAI({ apiKey: prefs.geminiKey });
+    const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const prompt = `Interests: ${prefs.interests}. Filter and summarize these: ${JSON.stringify(articles)}. Return ONLY a JSON array. Use Malayalam for India news, English for global tech. Avoid translation errors.`;
+    const prompt = `Interests: ${prefs.interests}. Filter/summarize these: ${JSON.stringify(articles)}. Return JSON only. Use Malayalam for local news, English for global tech.`;
 
-    const interaction = await ai.interactions.create({
-      model: "gemini-3-flash",
-      input: prompt
-    });
-
-    const text = interaction.response.text.replace(/```json|```/g, "").trim();
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().replace(/```json|```/g, "").trim();
     
     return {
       statusCode: 200,
