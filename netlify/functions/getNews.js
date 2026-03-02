@@ -17,13 +17,16 @@ exports.handler = async (event, context) => {
     const newsRes = await axios.get(`https://newsapi.org/v2/top-headlines?country=in&apiKey=${process.env.NEWS_API_KEY}`);
     const articles = newsRes.data.articles.slice(0, 10);
 
-    const client = new GoogleGenAI({ apiKey: prefs.geminiKey });
-    const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const ai = new GoogleGenAI({ apiKey: prefs.geminiKey });
 
-    const prompt = `Interests: ${prefs.interests}. Filter/summarize these: ${JSON.stringify(articles)}. Return JSON only. Use Malayalam for local news, English for tech.`;
+    const prompt = `Interests: ${prefs.interests}. Filter and summarize these: ${JSON.stringify(articles)}. Return ONLY a JSON array. Use Malayalam for India news, English for global tech. Avoid translation errors.`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().replace(/```json|```/g, "").trim();
+    const interaction = await ai.interactions.create({
+      model: "gemini-3-flash",
+      input: prompt
+    });
+
+    const text = interaction.response.text.replace(/```json|```/g, "").trim();
     
     return {
       statusCode: 200,
