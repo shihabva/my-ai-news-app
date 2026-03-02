@@ -78,6 +78,11 @@
         }
 
         netlifyIdentity.init({siteUrl: "https://varthakerala.netlify.app"});
+        netlifyIdentity.on("init", user => {
+          if (!user) {
+            netlifyIdentity.on("login", () => { window.location.reload(); });
+          }
+        });
         netlifyIdentity.on('login', user => {
             fetchNews();
             netlifyIdentity.close();
